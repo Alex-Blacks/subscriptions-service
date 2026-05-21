@@ -9,12 +9,14 @@ import (
 )
 
 type Service struct {
-	sub domain.SubscriptionRepository
+	storage domain.Storage
+	sub     domain.SubscriptionRepository
 }
 
-func NewService(sub domain.SubscriptionRepository) *Service {
+func NewService(storage domain.Storage, sub domain.SubscriptionRepository) *Service {
 	return &Service{
-		sub: sub,
+		storage: storage,
+		sub:     sub,
 	}
 }
 
