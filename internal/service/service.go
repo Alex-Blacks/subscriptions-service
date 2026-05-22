@@ -20,6 +20,15 @@ func NewService(storage domain.Storage, sub domain.SubscriptionRepository) *Serv
 	}
 }
 
+type SubscriptionService interface {
+	CreateSubscription(ctx context.Context, input domain.CreateSubscriptionInput) (int, error)
+	GetSubscriptionByID(ctx context.Context, id int) (domain.Subscription, error)
+	DeleteSubscription(ctx context.Context, id int) error
+	UpdateSubscription(ctx context.Context, id int, update domain.UpdateSubscriptionInput) (domain.Subscription, error)
+	ListSubscription(ctx context.Context, filter domain.ListFilter) ([]domain.Subscription, error)
+	SumSubscriptionPrice(ctx context.Context, filter domain.ListFilter) (int, error)
+}
+
 func (s *Service) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
 	tx, err := s.storage.BeginTx(ctx)
 	if err != nil {
