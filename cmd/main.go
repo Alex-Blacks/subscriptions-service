@@ -1,5 +1,72 @@
 package main
 
-func main() {
+import (
+	"context"
+	"log"
+	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"github.com/Alex-Blacks/subscriptions/internal/config"
+	"github.com/Alex-Blacks/subscriptions/internal/service"
+	"github.com/Alex-Blacks/subscriptions/internal/storage"
+	"github.com/Alex-Blacks/subscriptions/internal/transport"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	)
+	defer stop()
+
+	cfg := config.MustLoad()
+
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("error create db pool")
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		log.Fatal("error ping db")
+	}
+
+	st := storage.NewStorage(pool)
+	srv := service.NewService(st, st)
+
+	router := transport.NewRouter(srv)
+
+	server := http.Server{
+		Addr:    ":" + cfg.AppPort,
+		Handler: router,
+	}
+
+	go func() {
+		log.Printf("server started on %s", server.Addr)
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("server error: %v", err)
+			stop()
+		}
+	}()
+
+	<-ctx.Done()
+
+	log.Println("shutdown signal received")
+
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown error: %v", err)
+	}
+
+	pool.Close()
+	log.Println("server stopped")
 }
