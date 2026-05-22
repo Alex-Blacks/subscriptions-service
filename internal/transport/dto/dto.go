@@ -25,6 +25,45 @@ func SubscriptionToDomain(input CreateSubscriptionRequest) domain.CreateSubscrip
 	}
 }
 
+type UpdateSubscriptionRequest struct {
+	ServiceName *string    `json:"service_name,omitempty"`
+	Price       *int       `json:"price,omitempty"`
+	UserID      *uuid.UUID `json:"user_id,omitempty"`
+	StartDate   *time.Time `json:"start_date,omitempty"`
+	EndDate     *time.Time `json:"end_date,omitempty"`
+}
+
+func UpdateSubscriptionToDomain(input UpdateSubscriptionRequest) domain.UpdateSubscriptionInput {
+	return domain.UpdateSubscriptionInput{
+		ServiceName: input.ServiceName,
+		Price:       input.Price,
+		UserID:      input.UserID,
+		StartDate:   input.StartDate,
+		EndDate:     input.EndDate,
+	}
+}
+
+func ToListResponse(input []domain.Subscription) []SubscriptionResponse {
+	resp := make([]SubscriptionResponse, len(input))
+
+	for i, p := range input {
+		resp[i] = SubscriptionResponse{
+			ID:          p.ID,
+			ServiceName: p.ServiceName,
+			Price:       p.Price,
+			UserID:      p.UserID,
+			StartDate:   p.StartDate,
+			EndDate:     *p.EndDate,
+			CreatedAt:   p.CreatedAt,
+		}
+	}
+	return resp
+}
+
+type SubscriptionSumPriceResponse struct {
+	SumPrice int `json:"sum_price"`
+}
+
 type SubscriptionIDResponse struct {
 	ID int `json:"id"`
 }

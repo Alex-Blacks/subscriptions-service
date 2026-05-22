@@ -25,13 +25,13 @@ func CreateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 			return
 		}
 
-		subID, err := svc.CreateSubscription(ctx, dto.SubscriptionToDomain(req))
+		id, err := svc.CreateSubscription(ctx, dto.SubscriptionToDomain(req))
 		if err != nil {
 			WriteDomainError(w, logger, err, req)
 			return
 		}
-		resp := dto.SubscriptionIDResponse{ID: subID}
-		WriteJSON(w, logger, http.StatusCreated, resp)
+
+		WriteJSON(w, logger, http.StatusCreated, dto.SubscriptionIDResponse{ID: id})
 	}
 }
 
@@ -40,17 +40,15 @@ func GetSubscriptionByIDHandler(svc service.SubscriptionService) http.HandlerFun
 		ctx := r.Context()
 		logger := logging.LoggerFromContext(ctx)
 
-		subID, err := ParsePositiveIntParam(r, "id")
+		id, err := ParsePositiveIntParam(r, "id")
 		if err != nil {
 			WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		sub, err := svc.GetSubscriptionByID(ctx, subID)
+		sub, err := svc.GetSubscriptionByID(ctx, id)
 		if err != nil {
-			WriteDomainError(w, logger, err, map[string]any{
-				"subscription_id": subID,
-			})
+			WriteDomainError(w, logger, err, map[string]any{"id": id})
 			return
 		}
 
@@ -63,22 +61,100 @@ func DeleteSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 		ctx := r.Context()
 		logger := logging.LoggerFromContext(ctx)
 
-		subID, err := ParsePositiveIntParam(r, "id")
+		id, err := ParsePositiveIntParam(r, "id")
 		if err != nil {
 			WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		if err := svc.DeleteSubscription(ctx, subID); err != nil {
+		if err := svc.DeleteSubscription(ctx, id); err != nil {
+			WriteDomainError(w, logger, err, map[string]any{"id": id})
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func UpdateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := logging.LoggerFromContext(ctx)
+
+		id, err := ParsePositiveIntParam(r, "id")
+		if err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		var req dto.UpdateSubscriptionRequest
+
+		if err := DecodeJSON(w, r, logger, &req); err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		if err := ValidateUpdateSubscription(req); err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		sub, err := svc.UpdateSubscription(ctx, id, dto.UpdateSubscriptionToDomain(req))
+		if err != nil {
 			WriteDomainError(w, logger, err, map[string]any{
-				"subscription_id": subID,
+				"id": id,
 			})
 			return
 		}
 
-		logger.Info("subscription deleted",
-			"subscription_id", subID,
-		)
-		w.WriteHeader(http.StatusNoContent)
+		WriteJSON(w, logger, http.StatusOK, dto.SubscriptionToResponse(sub))
+	}
+}
+
+func ListSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := logging.LoggerFromContext(ctx)
+
+		filter, err := ParseListFilter(r)
+		if err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		list, err := svc.ListSubscription(ctx, filter)
+		if err != nil {
+			WriteDomainError(w, logger, err, map[string]any{
+				"filter": filter,
+			})
+			return
+		}
+
+		WriteJSON(w, logger, http.StatusOK, dto.ToListResponse(list))
+	}
+}
+
+func SumSubscriptionPriceHandler(svc service.SubscriptionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		logger := logging.LoggerFromContext(ctx)
+
+		filter, err := ParseListFilter(r)
+		if err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		sum, err := svc.SumSubscriptionPrice(ctx, filter)
+		if err != nil {
+			WriteDomainError(w, logger, err, map[string]any{
+				"filter": filter,
+			})
+			return
+		}
+
+		WriteJSON(w, logger, http.StatusOK, dto.SubscriptionSumPriceResponse{
+			SumPrice: sum,
+		})
 	}
 }

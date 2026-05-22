@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Alex-Blacks/subscriptions/internal/domain"
 	"github.com/Alex-Blacks/subscriptions/internal/transport/dto"
@@ -51,6 +52,13 @@ func ParsePositiveIntParam(r *http.Request, name string) (int, error) {
 	}
 	return val, nil
 }
+func ParseStrParam(r *http.Request, name string) (string, error) {
+	valStr := chi.URLParam(r, name)
+	if strings.TrimSpace(valStr) == "" {
+		return "", fmt.Errorf("%s must not be empty", name)
+	}
+	return valStr, nil
+}
 
 func WriteJSON(w http.ResponseWriter, logger *slog.Logger, status int, resp any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -75,6 +83,78 @@ func WriteInternalError(w http.ResponseWriter, logger *slog.Logger, err error, r
 	WriteJSON(w, logger, http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
 }
 
+func ParseListFilter(r *http.Request) (domain.ListFilter, error) {
+	q := r.URL.Query()
+	var filter domain.ListFilter
+
+	if raw := q.Get("user_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid user_id: %w", err)
+		}
+		filter.UserID = &id
+	}
+
+	if raw := q.Get("service_name"); raw != "" {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return filter, fmt.Errorf("service_name cannot be empty")
+		}
+		filter.ServiceName = &raw
+	}
+
+	if raw := q.Get("from"); raw != "" {
+		t, err := time.Parse("2006-01", raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid from date (expected YYYY-MM): %w", err)
+		}
+		filter.From = &t
+	}
+
+	if raw := q.Get("to"); raw != "" {
+		t, err := time.Parse("2006-01", raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid to date (expected YYYY-MM): %w", err)
+		}
+		filter.To = &t
+	}
+
+	if filter.From != nil && filter.To != nil {
+		if filter.To.Before(*filter.From) {
+			return filter, fmt.Errorf("to must be >= from")
+		}
+	}
+
+	if raw := q.Get("limit"); raw != "" {
+		l, err := strconv.Atoi(raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid limit")
+		}
+		if l <= 0 {
+			return filter, fmt.Errorf("limit must be > 0")
+		}
+		if l > 100 {
+			l = 100
+		}
+		filter.Limit = l
+	} else {
+		filter.Limit = 50
+	}
+
+	if raw := q.Get("offset"); raw != "" {
+		o, err := strconv.Atoi(raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid offset")
+		}
+		if o < 0 {
+			return filter, fmt.Errorf("offset must be >= 0")
+		}
+		filter.Offset = o
+	}
+
+	return filter, nil
+}
+
 func ValidateCreateSubscription(input dto.CreateSubscriptionRequest) error {
 	if strings.TrimSpace(input.ServiceName) == "" {
 		return fmt.Errorf("service_name must not be empty")
@@ -91,6 +171,49 @@ func ValidateCreateSubscription(input dto.CreateSubscriptionRequest) error {
 	if input.EndDate != nil && input.EndDate.Before(input.StartDate) {
 		return fmt.Errorf("end_date must be >= start_date")
 	}
+	return nil
+}
+
+func ValidateUpdateSubscription(input dto.UpdateSubscriptionRequest) error {
+	if input.ServiceName == nil &&
+		input.Price == nil &&
+		input.UserID == nil &&
+		input.StartDate == nil &&
+		input.EndDate == nil {
+		return fmt.Errorf("at least one field must be provided")
+	}
+
+	if input.ServiceName != nil &&
+		strings.TrimSpace(*input.ServiceName) == "" {
+		return fmt.Errorf("service_name must not be empty")
+	}
+
+	if input.Price != nil &&
+		*input.Price <= 0 {
+		return fmt.Errorf("price must be > 0")
+	}
+
+	if input.UserID != nil &&
+		*input.UserID == uuid.Nil {
+		return fmt.Errorf("user_id must not be empty")
+	}
+
+	if input.StartDate != nil &&
+		input.StartDate.IsZero() {
+		return fmt.Errorf("start_date must not be empty")
+	}
+
+	if input.EndDate != nil &&
+		input.EndDate.IsZero() {
+		return fmt.Errorf("end_date must not be empty")
+	}
+
+	if input.StartDate != nil &&
+		input.EndDate != nil &&
+		input.EndDate.Before(*input.StartDate) {
+		return fmt.Errorf("end_date must be >= start_date")
+	}
+
 	return nil
 }
 
