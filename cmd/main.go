@@ -13,6 +13,7 @@ import (
 	"github.com/Alex-Blacks/subscriptions/internal/storage"
 	"github.com/Alex-Blacks/subscriptions/internal/transport"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -23,6 +24,8 @@ func main() {
 	)
 	defer stop()
 
+	_ = godotenv.Load()
+
 	cfg := config.MustLoad()
 
 	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
@@ -31,7 +34,7 @@ func main() {
 	}
 
 	if err := pool.Ping(ctx); err != nil {
-		log.Fatal("error ping db")
+		log.Fatalf("error ping db: %v", err)
 	}
 
 	st := storage.NewStorage(pool)
