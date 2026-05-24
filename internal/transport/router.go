@@ -6,6 +6,7 @@ import (
 	"github.com/Alex-Blacks/subscriptions/internal/transport/handler"
 	"github.com/Alex-Blacks/subscriptions/internal/transport/middleware"
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func NewRouter(svc *service.Service) chi.Router {
@@ -15,9 +16,10 @@ func NewRouter(svc *service.Service) chi.Router {
 	router.Use(middleware.RecoveryMiddleware)
 	router.Use(middleware.LoggerMiddleware(logger))
 
+	router.Get("/swagger/*", httpSwagger.WrapHandler)
+
 	router.Route("/subscriptions", func(r chi.Router) {
 		r.Post("/", handler.CreateSubscriptionHandler(svc))
-
 		r.Get("/{id}", handler.GetSubscriptionByIDHandler(svc))
 		r.Delete("/{id}", handler.DeleteSubscriptionHandler(svc))
 		r.Patch("/{id}", handler.UpdateSubscriptionHandler(svc))

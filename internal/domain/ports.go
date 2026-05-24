@@ -61,11 +61,18 @@ type ListFilter struct {
 	Offset      int
 }
 
+type SumFilter struct {
+	UserID      *uuid.UUID
+	ServiceName *string
+	From        *time.Time
+	To          *time.Time
+}
+
 type SubscriptionRepository interface {
 	CreateSubscription(ctx context.Context, q Querier, input CreateSubscriptionInput) (int, error)
 	GetSubscriptionByID(ctx context.Context, q Querier, id int) (Subscription, error)
 	DeleteSubscription(ctx context.Context, q Querier, id int) error
 	UpdateSubscription(ctx context.Context, q Querier, id int, update UpdateSubscriptionInput) (Subscription, error)
 	ListSubscription(ctx context.Context, q Querier, filter ListFilter) ([]Subscription, error)
-	SumSubscriptionPrice(ctx context.Context, q Querier, filter ListFilter) (int, error)
+	SumSubscriptionPrice(ctx context.Context, q Querier, filter SumFilter) (int, error)
 }

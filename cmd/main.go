@@ -1,3 +1,8 @@
+// @title Subscription Service API
+// @version 1.0
+// @description REST API for subscriptions service
+// @host localhost:8080
+// @BasePath /
 package main
 
 import (
@@ -8,10 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/Alex-Blacks/subscriptions/docs"
 	"github.com/Alex-Blacks/subscriptions/internal/config"
 	"github.com/Alex-Blacks/subscriptions/internal/service"
 	"github.com/Alex-Blacks/subscriptions/internal/storage"
 	"github.com/Alex-Blacks/subscriptions/internal/transport"
+	_ "github.com/Alex-Blacks/subscriptions/internal/transport/handler"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )

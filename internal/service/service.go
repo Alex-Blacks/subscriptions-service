@@ -26,7 +26,7 @@ type SubscriptionService interface {
 	DeleteSubscription(ctx context.Context, id int) error
 	UpdateSubscription(ctx context.Context, id int, update domain.UpdateSubscriptionInput) (domain.Subscription, error)
 	ListSubscription(ctx context.Context, filter domain.ListFilter) ([]domain.Subscription, error)
-	SumSubscriptionPrice(ctx context.Context, filter domain.ListFilter) (int, error)
+	SumSubscriptionPrice(ctx context.Context, filter domain.SumFilter) (int, error)
 }
 
 func (s *Service) WithTx(ctx context.Context, fn func(q domain.Querier) error) (err error) {
@@ -84,6 +84,6 @@ func (s *Service) UpdateSubscription(ctx context.Context, id int, update domain.
 func (s *Service) ListSubscription(ctx context.Context, filter domain.ListFilter) ([]domain.Subscription, error) {
 	return s.sub.ListSubscription(ctx, s.storage, filter)
 }
-func (s *Service) SumSubscriptionPrice(ctx context.Context, filter domain.ListFilter) (int, error) {
+func (s *Service) SumSubscriptionPrice(ctx context.Context, filter domain.SumFilter) (int, error) {
 	return s.sub.SumSubscriptionPrice(ctx, s.storage, filter)
 }

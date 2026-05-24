@@ -8,6 +8,18 @@ import (
 	"github.com/Alex-Blacks/subscriptions/internal/transport/dto"
 )
 
+// CreateSubscriptionHandler godoc
+//
+// @Summary Create subscription
+// @Description Create subscription
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param request body dto.CreateSubscriptionRequest true "subscription payload"
+// @Success 201 {object} dto.SubscriptionIDResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /subscriptions [post]
 func CreateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -25,7 +37,13 @@ func CreateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 			return
 		}
 
-		id, err := svc.CreateSubscription(ctx, dto.SubscriptionToDomain(req))
+		subReq, err := dto.SubscriptionToDomain(req)
+		if err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		id, err := svc.CreateSubscription(ctx, subReq)
 		if err != nil {
 			WriteDomainError(w, logger, err, req)
 			return
@@ -35,6 +53,17 @@ func CreateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 	}
 }
 
+// GetSubscriptionByIDHandler godoc
+//
+// @Summary Get subscription by ID
+// @Description Get subscription by ID
+// @Tags subscriptions
+// @Produce json
+// @Param id path int true "subscription ID"
+// @Success 200 {object} dto.SubscriptionResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /subscriptions/{id} [get]
 func GetSubscriptionByIDHandler(svc service.SubscriptionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -56,6 +85,16 @@ func GetSubscriptionByIDHandler(svc service.SubscriptionService) http.HandlerFun
 	}
 }
 
+// DeleteSubscriptionHandler godoc
+//
+// @Summary Delete subscription by ID
+// @Description Delete subscription by ID
+// @Tags subscriptions
+// @Param id path int true "subscription ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /subscriptions/{id} [delete]
 func DeleteSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -76,6 +115,19 @@ func DeleteSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 	}
 }
 
+// UpdateSubscriptionHandler godoc
+//
+// @Summary Update subscription
+// @Description Update subscription
+// @Tags subscriptions
+// @Accept json
+// @Produce json
+// @Param id path int true "subscription ID"
+// @Param request body dto.UpdateSubscriptionRequest true "subscription payload"
+// @Success 200 {object} dto.SubscriptionResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /subscriptions/{id} [patch]
 func UpdateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -99,7 +151,12 @@ func UpdateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 			return
 		}
 
-		sub, err := svc.UpdateSubscription(ctx, id, dto.UpdateSubscriptionToDomain(req))
+		subReq, err := dto.UpdateSubscriptionToDomain(req)
+		if err != nil {
+			WriteError(w, logger, http.StatusBadRequest, err.Error())
+			return
+		}
+		sub, err := svc.UpdateSubscription(ctx, id, subReq)
 		if err != nil {
 			WriteDomainError(w, logger, err, map[string]any{
 				"id": id,
@@ -111,6 +168,25 @@ func UpdateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 	}
 }
 
+// ListSubscriptionHandler godoc
+//
+// @Summary List subscriptions
+// @Description List subscriptions with filters
+// @Tags subscriptions
+// @Produce json
+//
+// @Param service_name query string false "service_name"
+// @Param user_id query string false "user_id (uuid)"
+// @Param from query string false "from (MM-YYYY)"
+// @Param to query string false "to (MM-YYYY)"
+// @Param limit query int false "limit (default 50)"
+// @Param offset query int false "offset (default 0)"
+//
+// @Success 200 {array} dto.SubscriptionResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+//
+// @Router /subscriptions [get]
 func ListSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
@@ -134,12 +210,26 @@ func ListSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
 	}
 }
 
+// SumSubscriptionPriceHandler godoc
+//
+// @Summary Sum price subscriptions
+// @Description Sum price subscriptions
+// @Tags subscriptions
+// @Produce json
+// @Param service_name query string false "service_name"
+// @Param user_id query string false "user_id (uuid)"
+// @Param from query string false "from (MM-YYYY)"
+// @Param to query string false "to (MM-YYYY)"
+// @Success 200 {object} dto.SubscriptionSumPriceResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /subscriptions/sum [get]
 func SumSubscriptionPriceHandler(svc service.SubscriptionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		logger := logging.LoggerFromContext(ctx)
 
-		filter, err := ParseListFilter(r)
+		filter, err := ParseSumFilter(r)
 		if err != nil {
 			WriteError(w, logger, http.StatusBadRequest, err.Error())
 			return

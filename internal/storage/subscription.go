@@ -112,7 +112,7 @@ func (s *Storage) UpdateSubscription(ctx context.Context, q domain.Querier, id i
 		UPDATE subscriptions
 		SET %s 
 		WHERE id = $%d
-		RETURNING id,service_name,price,user_id,start_date,end_date
+		RETURNING id,service_name,price,user_id,start_date,end_date,created_at
 	`, strings.Join(setParts, ", "), argPos)
 
 	args = append(args, id)
@@ -129,31 +129,7 @@ func (s *Storage) UpdateSubscription(ctx context.Context, q domain.Querier, id i
 }
 
 func (s *Storage) ListSubscription(ctx context.Context, q domain.Querier, filter domain.ListFilter) ([]domain.Subscription, error) {
-	whereParts, args, argPos := CheckFilter(filter)
-	query := `
-		SELECT id,service_name,price,user_id,start_date,end_date,created_at
-		FROM subscriptions
-	`
-	if len(whereParts) != 0 {
-		query += " WHERE " + strings.Join(whereParts, " AND ")
-	}
-
-	query += " ORDER BY start_date DESC, id DESC"
-
-	limit := filter.Limit
-	if limit <= 0 {
-		limit = 50
-	}
-
-	query += fmt.Sprintf(" LIMIT $%d", argPos)
-	args = append(args, filter.Limit)
-	argPos++
-
-	if filter.Offset > 0 {
-		query += fmt.Sprintf(" OFFSET $%d", argPos)
-		args = append(args, filter.Offset)
-		argPos++
-	}
+	query, args := CheckSListFilter(filter)
 
 	rows, err := q.Query(ctx, query, args...)
 	if err != nil {
@@ -179,9 +155,9 @@ func (s *Storage) ListSubscription(ctx context.Context, q domain.Querier, filter
 
 }
 
-func (s *Storage) SumSubscriptionPrice(ctx context.Context, q domain.Querier, filter domain.ListFilter) (int, error) {
+func (s *Storage) SumSubscriptionPrice(ctx context.Context, q domain.Querier, filter domain.SumFilter) (int, error) {
 	var total int
-	whereParts, args, _ := CheckFilter(filter)
+	whereParts, args, _ := CheckSumFilter(filter)
 	query := `
 		SELECT COALESCE(SUM(price),0)
 		FROM subscriptions

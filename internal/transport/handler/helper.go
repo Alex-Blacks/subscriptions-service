@@ -17,10 +17,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type ErrorResponse struct {
-	Error string `json:"error"`
-}
-
 func DecodeJSON(w http.ResponseWriter, r *http.Request, logger *slog.Logger, dest any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	defer r.Body.Close()
@@ -73,14 +69,24 @@ func WriteError(w http.ResponseWriter, logger *slog.Logger, status int, msg stri
 		"status", status,
 		"error", msg,
 	)
-	WriteJSON(w, logger, status, ErrorResponse{Error: msg})
+	WriteJSON(w, logger, status, dto.ErrorResponse{Error: msg})
 }
 func WriteInternalError(w http.ResponseWriter, logger *slog.Logger, err error, req any) {
 	logger.Error("request failed",
 		"error", err,
 		"request", req,
 	)
-	WriteJSON(w, logger, http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
+	WriteJSON(w, logger, http.StatusInternalServerError, dto.ErrorResponse{Error: "internal server error"})
+}
+
+func parseMonth(raw string) (time.Time, error) {
+	t, err := time.Parse("01-2006", raw)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	// нормализация в начало месяца
+	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC), nil
 }
 
 func ParseListFilter(r *http.Request) (domain.ListFilter, error) {
@@ -104,18 +110,20 @@ func ParseListFilter(r *http.Request) (domain.ListFilter, error) {
 	}
 
 	if raw := q.Get("from"); raw != "" {
-		t, err := time.Parse("2006-01", raw)
+		t, err := parseMonth(raw)
 		if err != nil {
-			return filter, fmt.Errorf("invalid from date (expected YYYY-MM): %w", err)
+			return filter, fmt.Errorf("invalid from (MM-YYYY): %w", err)
 		}
 		filter.From = &t
 	}
 
 	if raw := q.Get("to"); raw != "" {
-		t, err := time.Parse("2006-01", raw)
+		t, err := parseMonth(raw)
 		if err != nil {
-			return filter, fmt.Errorf("invalid to date (expected YYYY-MM): %w", err)
+			return filter, fmt.Errorf("invalid to (MM-YYYY): %w", err)
 		}
+
+		t = t.AddDate(0, 1, 0)
 		filter.To = &t
 	}
 
@@ -155,6 +163,53 @@ func ParseListFilter(r *http.Request) (domain.ListFilter, error) {
 	return filter, nil
 }
 
+func ParseSumFilter(r *http.Request) (domain.SumFilter, error) {
+	q := r.URL.Query()
+	var filter domain.SumFilter
+
+	if raw := q.Get("user_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid user_id: %w", err)
+		}
+		filter.UserID = &id
+	}
+
+	if raw := q.Get("service_name"); raw != "" {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			return filter, fmt.Errorf("service_name cannot be empty")
+		}
+		filter.ServiceName = &raw
+	}
+
+	if raw := q.Get("from"); raw != "" {
+		t, err := parseMonth(raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid from (MM-YYYY): %w", err)
+		}
+		filter.From = &t
+	}
+
+	if raw := q.Get("to"); raw != "" {
+		t, err := parseMonth(raw)
+		if err != nil {
+			return filter, fmt.Errorf("invalid to (MM-YYYY): %w", err)
+		}
+
+		t = t.AddDate(0, 1, 0)
+		filter.To = &t
+	}
+
+	if filter.From != nil && filter.To != nil {
+		if filter.To.Before(*filter.From) {
+			return filter, fmt.Errorf("to must be >= from")
+		}
+	}
+
+	return filter, nil
+}
+
 func ValidateCreateSubscription(input dto.CreateSubscriptionRequest) error {
 	if strings.TrimSpace(input.ServiceName) == "" {
 		return fmt.Errorf("service_name must not be empty")
@@ -165,12 +220,15 @@ func ValidateCreateSubscription(input dto.CreateSubscriptionRequest) error {
 	if input.UserID == uuid.Nil {
 		return fmt.Errorf("user_id must not be empty")
 	}
-	if input.StartDate.IsZero() {
+	if strings.TrimSpace(input.StartDate) == "" {
 		return fmt.Errorf("start_date must not be empty")
 	}
-	if input.EndDate != nil && input.EndDate.Before(input.StartDate) {
-		return fmt.Errorf("end_date must be >= start_date")
+	if input.EndDate != nil {
+		if strings.TrimSpace(*input.EndDate) == "" {
+			return fmt.Errorf("end_date must not be empty")
+		}
 	}
+
 	return nil
 }
 
@@ -199,21 +257,15 @@ func ValidateUpdateSubscription(input dto.UpdateSubscriptionRequest) error {
 	}
 
 	if input.StartDate != nil &&
-		input.StartDate.IsZero() {
+		strings.TrimSpace(*input.StartDate) == "" {
 		return fmt.Errorf("start_date must not be empty")
 	}
 
 	if input.EndDate != nil &&
-		input.EndDate.IsZero() {
+		strings.TrimSpace(*input.EndDate) == "" {
 		return fmt.Errorf("end_date must not be empty")
-	}
 
-	if input.StartDate != nil &&
-		input.EndDate != nil &&
-		input.EndDate.Before(*input.StartDate) {
-		return fmt.Errorf("end_date must be >= start_date")
 	}
-
 	return nil
 }
 
