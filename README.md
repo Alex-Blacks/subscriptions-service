@@ -90,9 +90,6 @@ PostgreSQL: localhost:5432
 ### Unit tests
     go test ./...
 
-### Integration tests
-    go test ./integration -tags=integration
-
 ## База данных
 Миграции выполняются автоматически при старте контейнера
 
