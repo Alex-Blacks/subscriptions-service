@@ -3,9 +3,24 @@ package storage
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Alex-Blacks/subscriptions/internal/domain"
 )
+
+func monthsInPeriod(start, end time.Time) int {
+	if start.After(end) {
+		return 0
+	}
+	years := end.Year() - start.Year()
+	months := int(end.Month()) - int(start.Month())
+
+	totalMonths := years*12 + months
+	if totalMonths == 0 {
+		return 1
+	}
+	return totalMonths + 1
+}
 
 func CheckSumFilter(filter domain.SumFilter) ([]string, []any, int) {
 	var (
@@ -24,7 +39,7 @@ func CheckSumFilter(filter domain.SumFilter) ([]string, []any, int) {
 		argPos++
 	}
 	if filter.From != nil {
-		whereParts = append(whereParts, fmt.Sprintf("start_date >= $%d", argPos))
+		whereParts = append(whereParts, fmt.Sprintf("(end_date IS NULL OR end_date >= $%d", argPos))
 		args = append(args, *filter.From)
 		argPos++
 	}

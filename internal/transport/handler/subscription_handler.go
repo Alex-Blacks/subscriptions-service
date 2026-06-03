@@ -62,6 +62,7 @@ func CreateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 // @Param id path int true "subscription ID"
 // @Success 200 {object} dto.SubscriptionResponse
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /subscriptions/{id} [get]
 func GetSubscriptionByIDHandler(svc service.SubscriptionService) http.HandlerFunc {
@@ -93,6 +94,7 @@ func GetSubscriptionByIDHandler(svc service.SubscriptionService) http.HandlerFun
 // @Param id path int true "subscription ID"
 // @Success 204 "No Content"
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /subscriptions/{id} [delete]
 func DeleteSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {
@@ -126,6 +128,7 @@ func DeleteSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc
 // @Param request body dto.UpdateSubscriptionRequest true "subscription payload"
 // @Success 200 {object} dto.SubscriptionResponse
 // @Failure 400 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
 // @Failure 500 {object} dto.ErrorResponse
 // @Router /subscriptions/{id} [patch]
 func UpdateSubscriptionHandler(svc service.SubscriptionService) http.HandlerFunc {

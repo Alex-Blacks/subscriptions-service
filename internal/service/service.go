@@ -62,14 +62,17 @@ func (s *Service) CreateSubscription(ctx context.Context, input domain.CreateSub
 	}
 	return id, nil
 }
+
 func (s *Service) GetSubscriptionByID(ctx context.Context, id int) (domain.Subscription, error) {
 	return s.sub.GetSubscriptionByID(ctx, s.storage, id)
 }
+
 func (s *Service) DeleteSubscription(ctx context.Context, id int) error {
 	return s.WithTx(ctx, func(q domain.Querier) error {
 		return s.sub.DeleteSubscription(ctx, q, id)
 	})
 }
+
 func (s *Service) UpdateSubscription(ctx context.Context, id int, update domain.UpdateSubscriptionInput) (domain.Subscription, error) {
 	var sub domain.Subscription
 	if err := s.WithTx(ctx, func(q domain.Querier) error {
@@ -81,9 +84,11 @@ func (s *Service) UpdateSubscription(ctx context.Context, id int, update domain.
 	}
 	return sub, nil
 }
+
 func (s *Service) ListSubscription(ctx context.Context, filter domain.ListFilter) ([]domain.Subscription, error) {
 	return s.sub.ListSubscription(ctx, s.storage, filter)
 }
+
 func (s *Service) SumSubscriptionPrice(ctx context.Context, filter domain.SumFilter) (int, error) {
 	return s.sub.SumSubscriptionPrice(ctx, s.storage, filter)
 }

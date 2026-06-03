@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Alex-Blacks/subscriptions/internal/domain"
 	"github.com/jackc/pgx/v5"
@@ -156,18 +157,56 @@ func (s *Storage) ListSubscription(ctx context.Context, q domain.Querier, filter
 }
 
 func (s *Storage) SumSubscriptionPrice(ctx context.Context, q domain.Querier, filter domain.SumFilter) (int, error) {
-	var total int
 	whereParts, args, _ := CheckSumFilter(filter)
 	query := `
-		SELECT COALESCE(SUM(price),0)
+		SELECT price, start_data, end_data
 		FROM subscriptions
 	`
 	if len(whereParts) != 0 {
 		query += " WHERE " + strings.Join(whereParts, " AND ")
 	}
 
-	if err := q.QueryRow(ctx, query, args...).Scan(&total); err != nil {
-		return 0, fmt.Errorf("query sum failed: %w", err)
+	rows, err := q.Query(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("query subscription failed: %w", err)
 	}
+	defer rows.Close()
+
+	var total int
+	for rows.Next() {
+		var price int
+		var startDate, endDate time.Time
+		var endDatePtr *time.Time
+		if err := rows.Scan(&price, &startDate, &endDatePtr); err != nil {
+			return 0, fmt.Errorf("scan failed: %w", err)
+		}
+		if endDatePtr != nil {
+			endDate = *endDatePtr
+		} else {
+			endDate = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+		}
+
+		periodStart := startDate
+		if filter.From != nil && filter.From.After(startDate) {
+			periodStart = *filter.From
+		}
+
+		periodEnd := endDate
+		if filter.To != nil && filter.To.Before(endDate) {
+			periodEnd = *filter.To
+		}
+
+		if periodStart.After(periodEnd) {
+			continue
+		}
+
+		months := monthsInPeriod(periodStart, periodEnd)
+		total += price * months
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("rows iteration error: %w", err)
+	}
+
 	return total, nil
 }
